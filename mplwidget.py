@@ -83,9 +83,9 @@ class MplWidget(QtGui.QWidget):
         step = event.step
     except:
         if event.button == 'up':
-            step = 1
+            step = 20
         else:
-            step = -1   
+            step = -20
 
     # If in plot, use the xdata, ydata as the center point
     # If not in plot, check if we are in a plot axis

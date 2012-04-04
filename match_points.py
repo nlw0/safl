@@ -1,3 +1,4 @@
+#!/usr/bin/python2.7
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 from point_ui import Ui_MainWindow
@@ -42,28 +43,59 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     QtCore.QObject.connect(self.actionOpen, QtCore.SIGNAL("triggered()"), self.parseConfig)
     QtCore.QObject.connect(self.actionQuit, QtCore.SIGNAL('triggered()'), QtGui.qApp, QtCore.SLOT("quit()"))
     QtCore.QObject.connect(self.actionSave, QtCore.SIGNAL('triggered()'), self.save_matches)
+    QtCore.QObject.connect(self.actionClear_matches, QtCore.SIGNAL('triggered()'), self.clear_matches)
     QtCore.QObject.connect(self.setIndexBox, QtCore.SIGNAL("valueChanged(int)"), self.change_working_point)
     QtCore.QObject.connect(self.img1IndexBox, QtCore.SIGNAL("valueChanged(int)"), self.changeImage1)
     QtCore.QObject.connect(self.img2IndexBox, QtCore.SIGNAL("valueChanged(int)"), self.changeImage2)
     self.im1.canvas.mpl_connect('pick_event', self.onpick)
     self.im2.canvas.mpl_connect('pick_event', self.onpick)
+    self.im1.canvas.mpl_connect('button_press_event', self.onclick)
+    self.im2.canvas.mpl_connect('button_press_event', self.onclick)
 
-    
+    self.did_pick = False
+
+
+
+  def onclick(self, event):
+    ## Test if something was just picked from this click. In this
+    ## case, do nothing.
+    if self.did_pick:
+      self.did_pick = False
+      return
+
+    ## Not a left click, just ignore
+    if event.button != 1:
+      return
+
+    if event.canvas == self.im1.canvas:
+      self.point_matches[self.img1_who,self.working_point] = -1
+      self.update_selected_points(1)
+    elif event.canvas == self.im2.canvas:
+      self.point_matches[self.img2_who,self.working_point] = -1
+      self.update_selected_points(2)
+
+
   def onpick(self, event):
     ## Not a left click, just ignore
     if event.mouseevent.button != 1:
       return
 
-    do_increment = False
     if event.artist == self.line1:
       self.point_matches[self.img1_who,self.working_point] = event.ind[0]
-      do_increment = True
-    if event.artist == self.line2:
+      self.did_pick = True
+      im = 1
+    elif event.artist == self.line2:
       self.point_matches[self.img2_who,self.working_point] = event.ind[0]
-      do_increment = True
+      self.did_pick = True
+      im = 2
+    else:
+      return
 
-    if do_increment:
-      self.setIndexBox.setValue((self.working_point+1)%self.Nset)
+    if self.did_pick == True:
+      if self.autoFeed.isChecked():
+        self.setIndexBox.setValue((self.working_point+1)%self.Nset)
+      else:
+        self.update_selected_points(im)
 
   def change_working_point(self, wp):
     self.working_point = wp
@@ -89,8 +121,15 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     self.plot_possible_points(2)
     self.update_selected_points(2)
 
+  def clear_matches(self):
+    print 'Erasing current match matrix'
+    self.Nset = 20
+    self.point_matches = -1*np.ones((self.Nframes, self.Nset), dtype=np.int)
+    self.update_selected_points(1)
+    self.update_selected_points(2)
+    
   def save_matches(self):
-    print 'Saving current matching matrix'
+    print 'Saving current match matrix'
     np.savez(self.params['root_directory'] + '/matches.npz', matches=self.point_matches)
 
   def parseConfig(self,configFile=''):
@@ -180,3 +219,6 @@ if __name__ == "__main__":
   sys.exit(app.exec_())
 
   
+## Local variables:
+## python-indent: 2
+## end:

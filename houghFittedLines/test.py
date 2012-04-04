@@ -5,7 +5,7 @@ import fitTools as n
 import skimage.filter
 import skimage.transform
 
-im = asarray(Image.open("/home/ftruzzi/ciencia/DADOS/yorkurban/frames/00000001.png").convert("L"), dtype=np.float)
+im = asarray(Image.open("/home/nlw/ciencia/DADOS/yorkurban/frames/00000001.png").convert("L"), dtype=np.float)
 dx = scipy.ndimage.sobel(im,0)
 dy = scipy.ndimage.sobel(im,1)
 mag = np.hypot(dx,dy)
