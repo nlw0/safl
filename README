@@ -1,0 +1,10 @@
+SAFL
+
+SAFL is a set of Semi-Automatic Feature Location and parameter
+estimation tools for computer vision problems. Mostly intended to
+perform camera calibration tasks where you need to manually identify
+which set of points correspond to each other in sets of images, or
+which lines from an image correspond to which vanishing point.
+
+   ++nic <nwerneck@gmail.com>
+
