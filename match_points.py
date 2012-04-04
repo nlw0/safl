@@ -13,8 +13,16 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     self.parseConfig(configFile)
 
-    self.Nset = 20
-    self.point_matches = -1*np.ones((self.Nframes, self.Nset), dtype=np.int)
+    matches_file = self.params['root_directory'] + '/matches.npz'    
+
+    try:
+      self.point_matches = np.load(matches_file)['matches']
+      self.Nset = self.point_matches.shape[1]
+      print 'Read existing point match file exists.'
+    except:
+      print 'No point match file exists.'
+      self.Nset = 20
+      self.point_matches = -1*np.ones((self.Nframes, self.Nset), dtype=np.int)
 
     self.img1IndexBox.setMinimum(0)
     self.img1IndexBox.setMaximum(self.Nframes-1)
@@ -26,7 +34,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     self.setIndexBox.setMinimum(0)
     self.setIndexBox.setMaximum(self.Nset-1)
     self.setIndexBox.setValue(0)
-    self.workingPoint = 0
+    self.working_point = 0
 
     self.changeImage1(self.img1IndexBox.value())
     self.changeImage2(self.img2IndexBox.value())
@@ -34,7 +42,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     QtCore.QObject.connect(self.actionOpen, QtCore.SIGNAL("triggered()"), self.parseConfig)
     QtCore.QObject.connect(self.actionQuit, QtCore.SIGNAL('triggered()'), QtGui.qApp, QtCore.SLOT("quit()"))
     QtCore.QObject.connect(self.actionSave, QtCore.SIGNAL('triggered()'), self.save_matches)
-    QtCore.QObject.connect(self.setIndexBox, QtCore.SIGNAL("valueChanged(int)"), self.selectPoint)
+    QtCore.QObject.connect(self.setIndexBox, QtCore.SIGNAL("valueChanged(int)"), self.change_working_point)
     QtCore.QObject.connect(self.img1IndexBox, QtCore.SIGNAL("valueChanged(int)"), self.changeImage1)
     QtCore.QObject.connect(self.img2IndexBox, QtCore.SIGNAL("valueChanged(int)"), self.changeImage2)
     self.im1.canvas.mpl_connect('pick_event', self.onpick)
@@ -46,16 +54,19 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     if event.mouseevent.button != 1:
       return
 
+    do_increment = False
     if event.artist == self.line1:
-      self.point_matches[self.img1_who,self.workingPoint] = event.ind[0]
-      self.update_selected_points(1)
+      self.point_matches[self.img1_who,self.working_point] = event.ind[0]
+      do_increment = True
     if event.artist == self.line2:
-      self.point_matches[self.img2_who,self.workingPoint] = event.ind[0]
-      self.update_selected_points(2)
+      self.point_matches[self.img2_who,self.working_point] = event.ind[0]
+      do_increment = True
 
+    if do_increment:
+      self.setIndexBox.setValue((self.working_point+1)%self.Nset)
 
-  def selectPoint(self, event):
-    self.workingPoint = self.setIndexBox.value()
+  def change_working_point(self, wp):
+    self.working_point = wp
     self.update_selected_points(1)
     self.update_selected_points(2)
 
@@ -133,7 +144,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
       else:
         self.mark1.set_data(self.points[frame][sel,0],
                             self.points[frame][sel,1])
-      sel = self.point_matches[frame,self.workingPoint]
+      sel = self.point_matches[frame,self.working_point]
       if sel == -1:
         self.wrk1.set_data([],[])
       else:
@@ -149,7 +160,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
       else:
         self.mark2.set_data(self.points[frame][sel,0],
                             self.points[frame][sel,1])
-      sel = self.point_matches[frame,self.workingPoint]
+      sel = self.point_matches[frame,self.working_point]
       if sel == -1:
         self.wrk2.set_data([],[])
       else:
