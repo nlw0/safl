@@ -20,9 +20,8 @@ if __name__ == '__main__':
   distortion_model = 0 #0 harris e 1 brown
 
 
-
   ## Original intrinsic parameters of the camera.
-  vecint = array([5000.0, 880.0])
+  vecint = array([5000.0, 0., 880.0])
 
   ## Original extrinsic parameters of each pose.
   vecext = array([4,0,-8.0,0,-0.2,0,
@@ -34,9 +33,20 @@ if __name__ == '__main__':
   # kappa = array([0.0, 0.0])
   # fd = 320.0
   oc = array([500.0, 375.0])
-  kappa = array([vecint[0]*1e-9, 0.0])
-  fd = vecint[1]
+  kappa = array([vecint[0]*1e-9, vecint[1]*1e-9])
+  fd = vecint[2]
 
+  X0 = np.zeros(6*Ncam+3+2)
+  for i in range (6*Ncam):
+    X0[i]=vecext[i]
+  X0[6*Ncam] = vecint[0]
+  X0[6*Ncam+1] = vecint[1]
+  X0[6*Ncam+2] = vecint[2]
+  X0[6*Ncam+3] = oc[0]
+  X0[6*Ncam+4] = oc[1]
+
+  X_est = fmin(error, X0, args = (shape, pp, Ncam, distortion_model))
+	
   pp = []
   for cam in range(Ncam):
     t = vecext[cam*6:cam*6+3]
@@ -49,10 +59,7 @@ if __name__ == '__main__':
     t = vecext2[cam*6:cam*6+3]
     psi = vecext2[cam*6+3:cam*6+6]
     qq = project_points(shape, t, psi, fd, kappa, oc, distortion_model)
-    pp2.append(qq + random(qq.shape)*10.0)
-
-
-
+    pp2.append(qq + random(qq.shape)*10.0)    
 
 
   ion()

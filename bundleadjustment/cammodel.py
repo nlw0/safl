@@ -27,75 +27,42 @@ def project_points(shape, t, psi, fd, kappa, oc, distortion_method=1):
     um = np.ones(s)
     factor = (kappa[0]*rd2+kappa[1]*rd4+(kappa[0]**2)*rd4+(kappa[1]**2)*rd8+2*kappa[0]*kappa[1]*rd6)/(um+4*kappa[0]*rd2+6*kappa[1]*rd4)  
     p = q - q*factor + oc
+  else:
+    print 'Model argument must be 0 (Harris) or 1 (Brown).'
 
   print q
   
   return p
   
-
-
-
-
-
-
-
-def cam_model (X, qi, m, n, i):
+def error (X, shape, qi, Ncam, distortion_method=1):
 	
   ###Dados de entrada
   #recebe do ba e destrincha o vetor
-  r = X[0:n][0:3]
-  fd = X[n][0] 
-  k1 = X[n][1]
-  k2 = X[n][2]
-  oc = X[(n+1)][0:2]
-  t = X[(n+2):(n+i+2)][0:4]
-  rot = X[(n+i+2):(n+2*i+2)][0:4]
+  vecext = np.zeros(6*Ncam)
+  vecint = np.zeros(3)
+  oc = np.zeros(2)
 
-  #Camera orientation and then rotation matrix
-  #primeira imagem
-  psi = Quat(rot[0][0], rot[0][1], rot[0][2])
-  R = psi.rot()
-  #agora as outras
-  for j in range(i):
-    if j != 0:
-      psi = Quat(rot[j][0], rot[j][1], rot[j][2])
-      R = np.append(R, psi.rot(), axis = 0) 
+  for i in range (6*Ncam):
+    vecext[i] = X[i]
 
-  R = np.reshape(R, [i,3,3]) #shape(R) = (i,3,3)
-
-  ## Pontos no referencial da camera
-  rc = np.zeros((i,n,3))
-  #Pontos do objeto constantes, muda R e t de acordo com a imagem
-  for j in range (i):
-    rc[j] = dot(r-t[j], R[j])
-
-  ## Apply perspective distortion
-  #pontos da imagem, projetada
-  q = rc[:,:,:2] * fd / rc[:,:,[2,2]]
-  #shape(q) = (i,n,2)
-
-  if m == 0:
-    rho2 = (q[:,:,0]**2 + q[:,:,1]**2)
-    a = c_[2*[1.0/sqrt(1+k1*rho2)]].T
-    p = q / reshape(a,(i,n,2)) + oc
-    k2 = 0.
-    #shape(p) = (i,n,2)
-  elif m == 1:
-    rd = sqrt(q[:,:,0]**2+q[:,:,1]**2).T
-    rd2 = rd**2
-    rd4 = rd**4
-    rd6 = rd**6
-    rd8 = rd**8
-    factor = (k1*rd2+k2*rd4+(k1**2)*rd4+(k2**2)*rd8+2*k1*k2*rd6)/(1+4*k1*rd2+6*k2*rd4)
-    p = np.zeros((i,n,2))
-    for j in range (i): 
-      p[j] = q[j] - q[j]*(np.reshape(factor.T[j], [1,n])).T + oc
-  else:
-    print 'Model argument must be 0 (Harris) or 1 (Brown).'
+  vecint[0] = X[6*Ncam]
+  vecint[1] = X[6*Ncam+1] 
+  vecint[2] = X[6*Ncam+2] 
+  oc[0] = X[6*Ncam+3] 
+  oc[1] = X[6*Ncam+4]
+ 
+  kappa = array([vecint[0]*1e-9, vecint[1]*1e-9])
+  fd = vecint[2]
   
+  q = []
+  for cam in range(Ncam):
+    t = vecext[cam*6:cam*6+3]
+    psi = vecext[cam*6+3:cam*6+6]
+    q.append(project_points(shape, t, psi, fd, kappa, oc, distortion_method))
+
   #Error function
   #Ja calcula para todas as imagens
-  e = ((p-qi)**2).sum()
+  e = ((q-qi)**2).sum()
 
   return e
 
