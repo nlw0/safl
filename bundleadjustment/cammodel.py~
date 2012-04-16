@@ -54,7 +54,7 @@ def error (X, shape, qi, Ncam, distortion_method=1):
     q.append(project_points(shape, t, psi, fd, kappa, oc, distortion_method))
 
   #Error function
-  q=np.asarray(q)
+  q=numpy.asarray(q)
   e = ((q-qi)**2).sum()
 
   return e

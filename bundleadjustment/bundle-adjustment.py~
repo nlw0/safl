@@ -44,6 +44,8 @@ if __name__ == '__main__':
   X0[6*Ncam+3] = oc[0]
   X0[6*Ncam+4] = oc[1]
 
+  X_est = fmin(error, X0, args = (shape, pp, Ncam, distortion_model))
+	
   pp = []
   for cam in range(Ncam):
     t = vecext[cam*6:cam*6+3]
@@ -57,8 +59,7 @@ if __name__ == '__main__':
     psi = vecext2[cam*6+3:cam*6+6]
     qq = project_points(shape, t, psi, fd, kappa, oc, distortion_model)
     pp2.append(qq + random(qq.shape)*10.0)    
-  
-  X_est = fmin(error, X0, args = (shape, pp, Ncam, distortion_model))
+
 
   ion()
   for cam in range(Ncam):
