@@ -22,7 +22,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
       print 'Read existing point match file exists.'
     except:
       print 'No point match file exists.'
-      self.Nset = 20
+      self.Nset = 54
       self.point_matches = -1*np.ones((self.Nframes, self.Nset), dtype=np.int)
 
     self.img1IndexBox.setMinimum(0)
@@ -123,7 +123,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
   def clear_matches(self):
     print 'Erasing current match matrix'
-    self.Nset = 20
+    self.Nset = 54
     self.point_matches = -1*np.ones((self.Nframes, self.Nset), dtype=np.int)
     self.update_selected_points(1)
     self.update_selected_points(2)
