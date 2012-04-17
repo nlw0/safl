@@ -1,0 +1,9 @@
+*json
+*-nop.py
+*-nox.py
+*pyc
+*pyo
+*~
+*.so
+houghFittedLines/fitTools.c
+houghFittedLines/build
