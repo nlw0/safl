@@ -1,8 +1,7 @@
 #!/usr/bin/python2.7
 #coding: utf-8
 from pylab import *
-from scipy.optimize import fmin
-from scipy.optimize import fmin_powell
+from scipy.optimize import *
 from cammodel import *
 
 
@@ -48,20 +47,23 @@ if __name__ == '__main__':
 
   ## Monta estimativa inicial da calibração, a partir dos valores corretos.
   x_ini = np.zeros(6*Ncam+4)
-  x_ini[:6*Ncam] = vecext[:6*Ncam]
+  # x_ini[:6*Ncam] = vecext[:6*Ncam]
   x_ini[6*Ncam:] = vecint
-  for c in range(Ncam):
-    # x_ini[6*c:6*c+3] += random(3) * 1e-1 ## some noise
-    # x_ini[6*c+3:6*c+6] += random(3) * 1e-2 ## some noise
-    x_ini[6*c:6*c+3] += random(3) * 1e-0 ## some noise
-    x_ini[6*c+3:6*c+6] += random(3) * 1e-1 ## some noise
+  x_ini[2:6*Ncam:6] = -20.0
+
+  x_ini[-3] = 0.0
+
+  # for c in range(Ncam):
+  #   x_ini[6*c:6*c+3] += random(3) * 1e-0 ## some noise
+  #   x_ini[6*c+3:6*c+6] += random(3) * 1e-1 ## some noise
   ## Calcula todas projeções com os parâmetros estimados.
   pp_ini = project_all_the_points(shape, x_ini, Ncam, distortion_model)
 
   # x_opt = fmin(error, x_ini, args = (shape, pp_ans, Ncam, distortion_model),
   #              maxiter = 100000, maxfun = 100000 )
-  x_opt = fmin(error, x_ini, args = (shape, pp_ans, Ncam, distortion_model),
-               maxiter = 100000, maxfun = 100000 )
+  # x_opt = fmin(error, x_ini, args = (shape, pp_ans, Ncam, distortion_model),
+  #              maxiter = 100000, maxfun = 100000 )
+  x_opt = fmin_bfgs(error, x_ini, args = (shape, pp_ans, Ncam, distortion_model))
   pp_opt = project_all_the_points(shape, x_opt, Ncam, distortion_model)
 
   ion()
