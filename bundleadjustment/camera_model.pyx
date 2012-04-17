@@ -61,7 +61,7 @@ cdef double project_point(double *out_x, double *out_y, double x, double y, doub
     #     out_x[0] = params[1] + ux * nf
     #     out_y[0] = params[2] + uy * nf
     #     factor = (k2*rd2+k4*rd4+(k2**2)*rd4+(k4**2)*rd8+2*k2*k4*rd6)/(1+4*k2*rd2+6*k4*rd4)
-        
+
 
 
 def calc_projection_harris(x,y,z, camera_model, fd, kappa, xc, yc):

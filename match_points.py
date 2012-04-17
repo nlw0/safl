@@ -14,7 +14,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     self.parseConfig(configFile)
 
-    matches_file = self.params['root_directory'] + '/matches.npz'    
+    matches_file = self.params['root_directory'] + '/points/matches.npz'    
 
     try:
       self.point_matches = np.load(matches_file)['matches']
@@ -130,7 +130,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     
   def save_matches(self):
     print 'Saving current match matrix'
-    np.savez(self.params['root_directory'] + '/matches.npz', matches=self.point_matches)
+    np.savez(self.params['root_directory'] + '/points/matches.npz', matches=self.point_matches)
 
   def parseConfig(self,configFile=''):
     ## Opens dialog box if no config file name is provided.
