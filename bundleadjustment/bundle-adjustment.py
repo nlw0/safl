@@ -72,7 +72,7 @@ if __name__ == '__main__':
     lc = plot(pp_opt[cam][:,0], pp_opt[cam][:,1], 'rx')[0]
     axis('equal')
     axis([0,1000.0,750.0,0])
-  figlegend([la,lb,lc], ['pts','ini','ans'] )
+  figlegend([la,lb,lc], ['pts','ini','ans'], 'lower left', ncol=3 )
 
   print "Parâmetros externos"
   for c in range(Ncam):
