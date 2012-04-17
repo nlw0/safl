@@ -16,6 +16,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+import sys
+
+if __name__ == '__main__':
+    
+    import matplotlib
+    if sys.argv[0][-7:] == '-nop.py':
+        PlotStuff=False
+    else:
+        PlotStuff=True
+        from pylab import *
+        if sys.argv[0][-7:] == '-nox.py':
+            matplotlib.use('Agg') 
+
 from pylab import *
 from scipy.optimize import *
 from cammodel import *
@@ -26,9 +40,8 @@ from camera_model import reprojection_error, calculate_all_projections
 
 import simplejson
 
-if __name__ == '__main__':
 
-  PlotStuff = True
+if __name__ == '__main__':
 
   ## Avoid zero divide warnins...
   np.seterr(divide='ignore')
@@ -100,7 +113,7 @@ if __name__ == '__main__':
   ## each image, using the 'matches' array.
   pp_ref = []
   for framenumber in the_frames:
-    sys.stderr.write('Reading frame %d\n'%framenumber)
+    # sys.stderr.write('Reading frame %d\n'%framenumber)
     points_filename = job_params['root_directory']+'/points/'+'%08d.npz'%framenumber
     p_ref_all = np.load(points_filename)['arr_0']
     mm = matches[framenumber]
@@ -112,45 +125,46 @@ if __name__ == '__main__':
   pp_ini = calculate_all_projections(x_ini, shape, Ncam, what_model)
 
   # x_opt = fmin_bfgs(error, x_ini, args=(shape, pp_ref, Ncam, what_model))
-  x_opt = fmin_bfgs(reprojection_error, x_ini, args=(shape, pp_ref, what_model))
+  x_opt = fmin_bfgs(reprojection_error, x_ini, args=(shape, pp_ref, what_model), disp=False)
   pp_opt = calculate_all_projections(x_opt, shape, Ncam, what_model)
 
   ## Plota primeiras 9 imagens, e pontos extraídos, reprojeções
   ## iniciais, e reprojeções na solução encontrada.
 
-  for ii in range(3):
-    for kk in range(9):
-      kpp = ii*9++kk
-      if kpp >= Ncam:
-        break
-        
-      framenumber = the_frames[kpp]
-      p_ref = pp_ref[kpp]
-      p_ini = pp_ini[kpp]
-      p_opt = pp_opt[kpp]
 
-      figure(ii)
-      subplot(3,3,1+kk)
-      img = flipud(imread(job_params['root_directory']+'/frames/'+'%08d.bmp'%framenumber))
-      imshow(img, cm.bone)
-      aa = axis()
-      plot(p_ref[:,0], p_ref[:,1], 'bo')
-      # plot(p_ini[:,0], p_ini[:,1], 'g+', mew=1, ms=7, alpha=0.4)
-      plot(p_opt[:,0], p_opt[:,1], 'rx', mew=1.5)
+  if PlotStuff:
+    for ii in range(3):
+      for kk in range(9):
+        kpp = ii*9++kk
+        if kpp >= Ncam:
+          break
 
-      for n in range(p_ref.shape[0]):
-        # plot([p_opt[n,0], p_ini[n,0]],
-        #      [p_opt[n,1], p_ini[n,1]],
-        #      'g-', alpha=0.4)
-        plot([p_ref[n,0], p_opt[n,0]],
-             [p_ref[n,1], p_opt[n,1]],
-             'r-', alpha=0.4)
-      axis(aa)
+        framenumber = the_frames[kpp]
+        p_ref = pp_ref[kpp]
+        p_ini = pp_ini[kpp]
+        p_opt = pp_opt[kpp]
 
+        figure(ii)
+        subplot(3,3,1+kk)
+        img = flipud(imread(job_params['root_directory']+'/frames/'+'%08d.bmp'%framenumber))
+        imshow(img, cm.bone)
+        aa = axis()
+        plot(p_ref[:,0], p_ref[:,1], 'bo')
+        # plot(p_ini[:,0], p_ini[:,1], 'g+', mew=1, ms=7, alpha=0.4)
+        plot(p_opt[:,0], p_opt[:,1], 'rx', mew=1.5)
 
-  print "Parâmetros internos"
-  print x_ini[-4:]
-  print x_opt[-4:]
+        for n in range(p_ref.shape[0]):
+          # plot([p_opt[n,0], p_ini[n,0]],
+          #      [p_opt[n,1], p_ini[n,1]],
+          #      'g-', alpha=0.4)
+          plot([p_ref[n,0], p_opt[n,0]],
+               [p_ref[n,1], p_opt[n,1]],
+               'r-', alpha=0.4)
+        axis(aa)
+
+  err = reprojection_error(x_opt, shape, pp_ref, what_model)
+
+  print x_opt[-4], x_opt[-3], x_opt[-2], x_opt[-1], err
 
 
 
