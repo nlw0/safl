@@ -2,19 +2,18 @@ from pylab import *
 from quaternion import Quat
 from scipy.optimize import fmin
 
-def project_points(shape, t, psi, fd, kappa, oc, distortion_method=1):
-
+def project_points(shape, t, psi, fd, kappa, oc, distortion_model=1):
   ## 3D points in the camera reference frame
   rc = dot(shape-t, Quat(psi).rot())
   ## Perspective projection
   q = rc[:,:2] * fd / rc[:,[2,2]]
 
-  if distortion_method == 0:
+  if distortion_model == 0:
     rho2 = (q[:,0]**2 + q[:,1]**2)
-    a = np.abs(1+kappa[0]*rho2)**-0.5
+    a = np.abs(1+ (kappa[0] * 1e-9)*rho2)**-0.5
     p = q * c_[[a,a]].T + oc
-    print a
-  elif distortion_method == 1:
+    # print a
+  elif distortion_model == 1:
     rd = np.array([sqrt(q[:,0]**2+q[:,1]**2)]).T
     rd2 = rd**2
     rd4 = rd**4
@@ -26,38 +25,37 @@ def project_points(shape, t, psi, fd, kappa, oc, distortion_method=1):
     p = q - q*factor + oc
   else:
     print 'Model argument must be 0 (Harris) or 1 (Brown).'
-  print q
+  # print q
   return p
+
+def project_all_the_points(shape, bigvec, Ncam, distortion_model=1):
+  output = []
+  vecint = bigvec[6*Ncam:] ## fd, kappa, oc
+  for cam in range(Ncam):
+    t = bigvec[cam*6:cam*6+3]
+    psi = bigvec[cam*6+3:cam*6+6]
+    qq = project_points(shape, t, psi, vecint[0], vecint[1:2],
+                        vecint[2:], distortion_model)
+    output.append(qq)
+  return np.asarray(output)
+
+def error (X, shape, pp_ref, Ncam, distortion_model=1):
   
-def error (X, shape, qi, Ncam, distortion_method=1):
-	
   ###Dados de entrada
   #recebe do ba e destrincha o vetor
   vecext = np.zeros(6*Ncam)
-  vecint = np.zeros(3)
-  oc = np.zeros(2)
+  vecint = np.zeros(4)
 
   vecext[:6*Ncam] = X[:6*Ncam]
-  vecint[0] = X[6*Ncam]
-  vecint[1] = X[6*Ncam+1] 
-  vecint[2] = X[6*Ncam+2] 
-  oc[0] = X[6*Ncam+3] 
-  oc[1] = X[6*Ncam+4]
- 
-  kappa = array([vecint[0]*1e-9, vecint[1]*1e-9])
-  fd = vecint[2]
-  
-  q = []
-  for cam in range(Ncam):
-    t = vecext[cam*6:cam*6+3]
-    psi = vecext[cam*6+3:cam*6+6]
-    q.append(project_points(shape, t, psi, fd, kappa, oc, distortion_method))
+  vecint = X[6*Ncam:] ## fd, kappa, oc
 
-  #Error function
-  q=np.asarray(q)
-  e = ((q-qi)**2).sum()
+  pp_est = project_all_the_points(shape, X, Ncam, distortion_model)
+
+  # e = ((pp_est-pp_ref)**2).sum()
+  e = (np.abs(pp_est-pp_ref)).sum()
 
   return e
+
 ## Local variables:
 ## python-indent: 2
 ## end:
