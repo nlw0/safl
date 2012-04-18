@@ -63,16 +63,17 @@ if __name__ == '__main__':
   img = ascontiguousarray(flipud(img), dtype=np.uint8)
 
   # parout = array([100, 500, 500.0])
+  # parout = array([1000/(2*pi), 500, -250.0]) # equiretangular 2 (6)
   # parout = array([1000/(2*pi), 600, 800.0]) # cyl (7)
-  parout = array([600, 600, 400.0]) # stereográfica
+  parout = array([500, 500, 400.0]) # stereográfica (8)
 
   #parsrc = array([300, 650,500,3000e-9])
   #parsrc = array([300, 639,479,3000e-9])
-  #parsrc = array([ 390.678, 617.934, 505.704]) #polar equidi (2)
-  parsrc = array([ 390.678, 639.0, 479.0]) #polar equidi (2)
+  parsrc = array([ 390.678, 617.934, 505.704]) #polar equidi (2)
+  #parsrc = array([ 390.678, 639.0, 479.0]) #polar equidi (2)
 
   #out = zeros((1000,1000,3), dtype=float64)
-  out = zeros((800,1200,3), dtype=uint8)
+  out = zeros((1000,1000,3), dtype=uint8)
   reproject(out, img, 8, parout, 2, parsrc)
 
   ion()

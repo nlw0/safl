@@ -86,7 +86,7 @@ if __name__ == '__main__':
   focal_distance = job_params['focal_distance']
   distortion_coefficient = job_params['distortion_coefficient']
 
-  what_model = 2
+  what_model = 1
   if what_model in [0,2]:
     vecint = array([focal_distance, 
                     p_point[0], p_point[1]])
@@ -111,6 +111,8 @@ if __name__ == '__main__':
   x_ini[0:6*Ncam:6] = t_ini[0]
   x_ini[1:6*Ncam:6] = t_ini[1]
   x_ini[2:6*Ncam:6] = t_ini[2]
+
+  x_ini += random(x_ini.shape) * 0.01
   
   ## Get the observations ready, look for the approriate index for
   ## each image, using the 'matches' array.
@@ -127,7 +129,6 @@ if __name__ == '__main__':
   ## Calculate reprojections in the initial estimate.
   pp_ini = calculate_all_projections(x_ini, shape, Ncam, what_model)
 
-  # x_opt = fmin_bfgs(error, x_ini, args=(shape, pp_ref, Ncam, what_model))
   x_opt = fmin_bfgs(reprojection_error, x_ini, args=(shape, pp_ref, what_model), disp=False)
   pp_opt = calculate_all_projections(x_opt, shape, Ncam, what_model)
 

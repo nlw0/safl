@@ -135,7 +135,6 @@ cdef double point_direction(double* out_x, double* out_y,
 
     ## Inverse from 5th order odd polynomial
     elif camera_model == 3:
-
         ux = x - params[1]
         uy = y - params[2]
         r2 = ux*ux + uy*uy
@@ -175,13 +174,12 @@ cdef double point_direction(double* out_x, double* out_y,
 
     ## Also equirectangular, but with the z-axis as the zenith.
     elif camera_model == 6:
-        if params[3] == 0:
-            the = (x - params[1]) / params[0]
-            phi = (y - params[2]) / params[0]
+        the = (x - params[1]) / params[0]
+        phi = (y - params[2]) / params[0]
 
-            out_x[0] = cos(phi) * sin(the)
-            out_y[0] = cos(phi) * cos(the)
-            out_z[0] = sin(phi)
+        out_x[0] = cos(phi) * sin(the)
+        out_y[0] = cos(phi) * cos(the)
+        out_z[0] = sin(phi)
 
     ## Cylindrical, with the z-axis as the zenith.
     elif camera_model == 7:
