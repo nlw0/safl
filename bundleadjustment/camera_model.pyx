@@ -53,7 +53,7 @@ cdef double project_point(double *out_x, double *out_y,
 
     ## Harris distortion model.
     elif camera_model == 1:
-        factor = 1.0/sqrt(fabs(1 + params[3] * (ux*ux+uy*uy)))
+        factor = 1.0/sqrt(fabs(1 + 1e-9 * params[3] * (ux*ux+uy*uy)))
         out_x[0] = params[1] + ux * factor
         out_y[0] = params[2] + uy * factor
 
@@ -114,7 +114,7 @@ cdef double point_direction(double* out_x, double* out_y,
     elif camera_model == 1:
         ux = x - params[1]
         uy = y - params[2]
-        factor = 1.0/sqrt(fabs(1 - params[3] * (ux*ux+uy*uy)))
+        factor = 1.0/sqrt(fabs(1 - 1e-9*params[3] * (ux*ux+uy*uy)))
         ux = ux * factor
         uy = uy * factor
 
