@@ -27,15 +27,20 @@ DTYPE = np.float32
 ctypedef np.float32_t DTYPE_t
 DTYPE2 = np.float64
 ctypedef np.float64_t DTYPE2_t
+CTYPE = np.uint8
+ctypedef np.uint8_t CTYPE_t
 
 cimport cython
 
 
 
-cdef double project_point(double *out_x, double *out_y, double x, double y, double z, int camera_model,
-                         double* params):
+cdef double project_point(double *out_x, double *out_y,
+                          double x, double y, double z,
+                          int camera_model, double* params):
 
-    cdef double ux, uy, kappa, nf
+    cdef double ux, uy, factor
+
+    cdef double r2,r4,r6,r8,k1,k2, rho
 
     if camera_model == 0 or camera_model == 1 or camera_model == 2:
         ux = params[0] * x/z
@@ -45,23 +50,160 @@ cdef double project_point(double *out_x, double *out_y, double x, double y, doub
     if camera_model == 0:
         out_x[0] = params[1] + ux
         out_y[0] = params[2] + uy
-        
+
     ## Harris distortion model.
     elif camera_model == 1:
-        kappa = 1e-9 * params[3]
-        nf = 1.0/sqrt(fabs(1 + kappa * (ux*ux+uy*uy)))
-        out_x[0] = params[1] + ux * nf
-        out_y[0] = params[2] + uy * nf
+        factor = 1.0/sqrt(fabs(1 + params[3] * (ux*ux+uy*uy)))
+        out_x[0] = params[1] + ux * factor
+        out_y[0] = params[2] + uy * factor
 
-    ## Polynomial distortion model.
-    # elif camera_model == 2:
-    #     cdef r2 = ux*ux + uy*uy
-    #     cdef double k1 = params[3]
-    #     cdef double k2 = params[4]
-    #     out_x[0] = params[1] + ux * nf
-    #     out_y[0] = params[2] + uy * nf
-    #     factor = (k2*rd2+k4*rd4+(k2**2)*rd4+(k4**2)*rd8+2*k2*k4*rd6)/(1+4*k2*rd2+6*k4*rd4)
+    ## Polar azimuhtal equidistant projection
+    elif camera_model == 2:
+        ux = x
+        uy = y
+        factor = hypot(ux,uy)
+        ux = ux / factor
+        uy = uy / factor
+        rho = atan2(factor, z)
+        out_x[0] = params[1] + params[0]*ux*rho
+        out_y[0] = params[2] + params[0]*uy*rho
 
+    ## Inverse from 5th order odd polynomial
+    elif camera_model == 3:
+        r2 = ux*ux + uy*uy
+        r4 = r2*r2
+        r6 = r4*r2
+        r8 = r4*r4
+        k1 = params[3]
+        k2 = params[4]
+        factor = (1 - ((k1*r2 + k2*r4 + (k1*k1)*r4 + (k2*k2)*r8 + 2*k1*k2*r6) /
+                       (1 + 4*k1*r2 + 6*k2*r4)))
+        out_x[0] = params[1] + ux * factor
+        out_y[0] = params[2] + uy * factor
+
+    ## 5th order odd polynomial
+    elif camera_model == 4:
+        r2 = ux*ux + uy*uy
+        r4 = r2*r2
+        r6 = r4*r2
+        r8 = r4*r4
+        k1 = params[3]
+        k2 = params[4]
+        factor = (1 + (k1*r2 + k2*r4))
+        out_x[0] = params[1] + ux * factor
+        out_y[0] = params[2] + uy * factor
+
+
+
+
+cdef double point_direction(double* out_x, double* out_y,
+                            double* out_z, double x, double y,
+                            int camera_model, double* params):
+    
+    cdef double ux, uy, factor
+    cdef double rx, ry, rho, the, phi
+    cdef double r2, r4, r6, r8, k1, k2
+
+    ## Simple perspective projection.
+    if camera_model == 0:
+        out_x[0] = x - params[1]
+        out_y[0] = y - params[2]
+        out_z[0] = params[0]
+
+    ## Harris distortion model.
+    elif camera_model == 1:
+        ux = x - params[1]
+        uy = y - params[2]
+        factor = 1.0/sqrt(fabs(1 - params[3] * (ux*ux+uy*uy)))
+        ux = ux * factor
+        uy = uy * factor
+
+        out_x[0] = ux
+        out_y[0] = uy
+        out_z[0] = params[0]
+
+    ## Polar azimuhtal equidistant projection
+    elif camera_model == 2:
+        rx = (x - params[1])/params[0]
+        ry = (y - params[2])/params[0]
+        phi = sqrt(rx*rx+ry*ry)
+        rx = rx/phi
+        ry = ry/phi
+        out_x[0] = cos(phi)*rx
+        out_y[0] = cos(phi)*ry
+        out_z[0] = sin(phi)
+
+    ## Inverse from 5th order odd polynomial
+    elif camera_model == 3:
+
+        ux = x - params[1]
+        uy = y - params[2]
+        r2 = ux*ux + uy*uy
+        r4 = r2*r2
+        k1 = params[3]
+        k2 = params[4]
+        factor = (1 + (k1*r2 + k2*r4))
+        out_x[0] = ux * factor
+        out_y[0] = uy * factor
+        out_z[0] = params[0]
+
+    ## 5th order odd polynomial
+    elif camera_model == 4:
+        ux = x - params[1]
+        uy = y - params[2]
+        r2 = ux*ux + uy*uy
+        r4 = r2*r2
+        r6 = r4*r2
+        r8 = r4*r4
+        k1 = params[3]
+        k2 = params[4]
+        factor = (1 - ((k1*r2 + k2*r4 + (k1*k1)*r4 + (k2*k2)*r8 + 2*k1*k2*r6) /
+                       (1 + 4*k1*r2 + 6*k2*r4)))
+        out_x[0] = ux * factor
+        out_y[0] = uy * factor
+        out_z[0] = params[0]
+
+
+    ## Equiretangular
+    elif camera_model == 4:
+        the = (x - params[1]) / params[0]
+        phi = (y - params[2]) / params[0]
+
+        out_x[0] = sin(phi) * sin(the)
+        out_y[0] = sin(phi) * cos(phi)
+        out_z[0] = cos(phi) * cos(the)
+
+
+
+def reproject(np.ndarray[CTYPE_t, ndim=3, mode="c"] out not None,
+              np.ndarray[CTYPE_t, ndim=3, mode="c"] src not None,
+              int model_out,
+              np.ndarray[DTYPE2_t, ndim=1, mode="c"] params_out not None,
+              int model_src,
+              np.ndarray[DTYPE2_t, ndim=1, mode="c"] params_src not None):
+
+    cdef double rx,ry,rz
+
+    cdef double sk, sj
+    cdef int isk, isj
+
+    cdef char* outd = <char*> out.data
+    cdef char* srcd = <char*> src.data
+
+    Ncol_out = out.shape[1]
+    Ncol_src = src.shape[1]
+    for j in range(out.shape[0]):
+        for k in range(out.shape[1]):
+            point_direction(&rx, &ry, &rz, k, j, model_out, <double *> params_out.data)
+            project_point(&sk, &sj, rx, ry, rz, model_src, <double *> params_src.data)
+            isk = lround(sk)
+            isj = lround(sj)
+            if (isj < 0 or isj >= src.shape[0] or
+                isk < 0 or isk >= src.shape[1]):
+                continue
+            outd[j*Ncol_out*3 + k*3 + 0] = srcd[isj*Ncol_src*3 + isk*3  ]
+            outd[j*Ncol_out*3 + k*3 + 1] = srcd[isj*Ncol_src*3 + isk*3 + 1]
+            outd[j*Ncol_out*3 + k*3 + 2] = srcd[isj*Ncol_src*3 + isk*3 + 2]
 
 
 def calc_projection_harris(x,y,z, camera_model, fd, kappa, xc, yc):
@@ -243,3 +385,8 @@ def reprojection_error(
 cdef extern double hypot(double,double)
 cdef extern double sqrt(double)
 cdef extern double fabs(double)
+cdef extern long int lround(double)
+cdef extern double tan(double)
+cdef extern double atan2(double,double)
+cdef extern double cos(double)
+cdef extern double sin(double)
