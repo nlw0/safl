@@ -62,23 +62,27 @@ if __name__ == '__main__':
   #img = ascontiguousarray(flipud(img), dtype=float64)
   img = ascontiguousarray(flipud(img), dtype=np.uint8)
 
+  # parout = array([100, 500, 500.0])
+  # parout = array([1000/(2*pi), 600, 800.0]) # cyl (7)
+  parout = array([600, 600, 400.0]) # stereográfica
+
   #parsrc = array([300, 650,500,3000e-9])
-  parsrc = array([300, 639,479,3000e-9])
-  parout = array([100, 500, 500.0])
+  #parsrc = array([300, 639,479,3000e-9])
+  #parsrc = array([ 390.678, 617.934, 505.704]) #polar equidi (2)
+  parsrc = array([ 390.678, 639.0, 479.0]) #polar equidi (2)
 
   #out = zeros((1000,1000,3), dtype=float64)
-  out = zeros((1000,1000,3), dtype=uint8)
-  reproject(out, img, 0, parout, 1, parsrc)
+  out = zeros((800,1200,3), dtype=uint8)
+  reproject(out, img, 8, parout, 2, parsrc)
 
   ion()
   figure(1)
-  subplot(121)
   imshow(img)
   aa=axis()
   plot([parsrc[1]], [parsrc[2]], 'bs')
   axis(aa)
 
-  subplot(122)
+  figure(2)
   imshow(out)
   aa=axis()
   plot([parout[1]], [parout[2]], 'bs')

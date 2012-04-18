@@ -86,22 +86,25 @@ if __name__ == '__main__':
   focal_distance = job_params['focal_distance']
   distortion_coefficient = job_params['distortion_coefficient']
 
-  what_model = 1
-  # vecint = array([focal_distance, 
-  #                 p_point[0], p_point[1]])
-  vecint = array([focal_distance, 
-                  p_point[0], p_point[1],
-                  distortion_coefficient  ])
+  what_model = 2
+  if what_model in [0,2]:
+    vecint = array([focal_distance, 
+                    p_point[0], p_point[1]])
+  else:
+      vecint = array([focal_distance, 
+                      p_point[0], p_point[1],
+                      distortion_coefficient  ])
+
 
 
 
   t_ini = array([-4,-3,-20.0])
 
-  if what_model == 0:
+  if what_model in [0,2]:
     x_ini = np.zeros(6*Ncam+3, dtype=np.float64)
   elif what_model == 1:
     x_ini = np.zeros(6*Ncam+4, dtype=np.float64)
-  elif what_model == 2:
+  elif what_model in [3,4]:
     x_ini = np.zeros(6*Ncam+5, dtype=np.float64)
 
   x_ini[6*Ncam:] = vecint

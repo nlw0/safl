@@ -163,16 +163,44 @@ cdef double point_direction(double* out_x, double* out_y,
         out_y[0] = uy * factor
         out_z[0] = params[0]
 
-
     ## Equiretangular
-    elif camera_model == 4:
+    elif camera_model == 5:
+        if params[3] == 0:
+            the = (x - params[1]) / params[0]
+            phi = (y - params[2]) / params[0]
+
+            out_x[0] = cos(phi) * sin(the)
+            out_y[0] = sin(phi)
+            out_z[0] = cos(phi) * cos(the)
+
+    ## Also equirectangular, but with the z-axis as the zenith.
+    elif camera_model == 6:
+        if params[3] == 0:
+            the = (x - params[1]) / params[0]
+            phi = (y - params[2]) / params[0]
+
+            out_x[0] = cos(phi) * sin(the)
+            out_y[0] = cos(phi) * cos(the)
+            out_z[0] = sin(phi)
+
+    ## Cylindrical, with the z-axis as the zenith.
+    elif camera_model == 7:
         the = (x - params[1]) / params[0]
         phi = (y - params[2]) / params[0]
+        
+        out_x[0] = sin(the)
+        out_y[0] = cos(the)
+        out_z[0] = -phi
 
-        out_x[0] = sin(phi) * sin(the)
-        out_y[0] = sin(phi) * cos(phi)
-        out_z[0] = cos(phi) * cos(the)
+    ## stereographic projection
+    elif camera_model == 8:
+        ux = (x - params[1]) / params[0]
+        uy = (y - params[2]) / params[0]
 
+        factor = 1.0/(1+ux*ux+uy*uy)
+        out_x[0] = 2*ux*factor
+        out_y[0] = 2*uy*factor
+        out_z[0] = -(-1+ux*ux+uy*uy) * factor
 
 
 def reproject(np.ndarray[CTYPE_t, ndim=3, mode="c"] out not None,
@@ -229,7 +257,7 @@ def calculate_all_projections(
     cdef int Npts = structure.shape[0]
 
     ## Check out size of stuff
-    if camera_model == 0:
+    if camera_model == 0 or camera_model == 2:
         assert all_params.shape[0] == Ncam * 6 + 3
     elif camera_model == 1:
         assert all_params.shape[0] == Ncam * 6 + 4
@@ -297,9 +325,6 @@ def calculate_all_projections(
 
 
 ###############################################################################
-### Old target function for equirectangular projection. Must be
-### updated to use the external M-estimator procedures. Must calculate
-### the derivatives too some day so we can use FilterSQP.
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def reprojection_error(
@@ -314,7 +339,7 @@ def reprojection_error(
     assert pp_ref.shape[1] == Npts
 
     ## Check out size of stuff
-    if camera_model == 0:
+    if camera_model == 0 or camera_model == 2:
         assert all_params.shape[0] == Ncam * 6 + 3
     elif camera_model == 1:
         assert all_params.shape[0] == Ncam * 6 + 4
