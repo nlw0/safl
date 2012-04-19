@@ -166,6 +166,12 @@ if __name__ == '__main__':
                'r-', alpha=0.4)
         axis(aa)
 
+
+
+
+
+
+
   err = reprojection_error(x_opt, shape, pp_ref, what_model)
 
   print x_opt[-4], x_opt[-3], x_opt[-2], x_opt[-1], err

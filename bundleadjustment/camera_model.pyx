@@ -129,9 +129,9 @@ cdef double point_direction(double* out_x, double* out_y,
         phi = sqrt(rx*rx+ry*ry)
         rx = rx/phi
         ry = ry/phi
-        out_x[0] = cos(phi)*rx
-        out_y[0] = cos(phi)*ry
-        out_z[0] = sin(phi)
+        out_x[0] = sin(phi)*rx
+        out_y[0] = sin(phi)*ry
+        out_z[0] = cos(phi)
 
     ## Inverse from 5th order odd polynomial
     elif camera_model == 3:
