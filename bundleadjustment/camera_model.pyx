@@ -202,11 +202,11 @@ cdef double point_direction(double* out_x, double* out_y,
 
 
 def reproject(np.ndarray[CTYPE_t, ndim=3, mode="c"] out not None,
-              np.ndarray[CTYPE_t, ndim=3, mode="c"] src not None,
-              int model_out,
-              np.ndarray[DTYPE2_t, ndim=1, mode="c"] params_out not None,
-              int model_src,
-              np.ndarray[DTYPE2_t, ndim=1, mode="c"] params_src not None):
+        np.ndarray[CTYPE_t, ndim=3, mode="c"] src not None,
+        int model_out,
+        np.ndarray[DTYPE2_t, ndim=1, mode="c"] params_out not None,
+        int model_src,
+        np.ndarray[DTYPE2_t, ndim=1, mode="c"] params_src not None):
 
     cdef double rx,ry,rz
 
@@ -222,6 +222,46 @@ def reproject(np.ndarray[CTYPE_t, ndim=3, mode="c"] out not None,
         for k in range(out.shape[1]):
             point_direction(&rx, &ry, &rz, k, j, model_out, <double *> params_out.data)
             project_point(&sk, &sj, rx, ry, rz, model_src, <double *> params_src.data)
+            isk = lround(sk)
+            isj = lround(sj)
+            if (isj < 0 or isj >= src.shape[0] or
+                isk < 0 or isk >= src.shape[1]):
+                continue
+            outd[j*Ncol_out*3 + k*3 + 0] = srcd[isj*Ncol_src*3 + isk*3  ]
+            outd[j*Ncol_out*3 + k*3 + 1] = srcd[isj*Ncol_src*3 + isk*3 + 1]
+            outd[j*Ncol_out*3 + k*3 + 2] = srcd[isj*Ncol_src*3 + isk*3 + 2]
+
+
+def reproject_rotation(np.ndarray[CTYPE_t, ndim=3, mode="c"] out not None,
+        np.ndarray[CTYPE_t, ndim=3, mode="c"] src not None,
+        int model_out,
+        np.ndarray[DTYPE2_t, ndim=1, mode="c"] params_out not None,
+        int model_src,
+        np.ndarray[DTYPE2_t, ndim=1, mode="c"] params_src not None,
+        np.ndarray[DTYPE2_t, ndim=2, mode="c"] Rmat not None):
+
+    cdef double rx,ry,rz
+    cdef double sx,sy,sz
+
+    cdef double sk, sj
+    cdef int isk, isj
+
+    cdef char* outd = <char*> out.data
+    cdef char* srcd = <char*> src.data
+
+    cdef double* R = <double*> Rmat.data
+
+    Ncol_out = out.shape[1]
+    Ncol_src = src.shape[1]
+    for j in range(out.shape[0]):
+        for k in range(out.shape[1]):
+            point_direction(&rx, &ry, &rz, k, j, model_out, <double *> params_out.data)
+            
+            sx = R[0] * rx + R[1] * ry + R[2] * rz
+            sy = R[3] * rx + R[4] * ry + R[5] * rz
+            sz = R[6] * rx + R[7] * ry + R[8] * rz
+
+            project_point(&sk, &sj, sx, sy, sz, model_src, <double *> params_src.data)
             isk = lround(sk)
             isj = lround(sj)
             if (isj < 0 or isj >= src.shape[0] or
