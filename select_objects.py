@@ -1,10 +1,11 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python2
 
 ## Remember to use "pyuic4 -o objseg_ui.py objseg_ui.ui"
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 from objseg_ui import Ui_MainWindow
 import simplejson
+import pickle
 import sys, Image, os
 import numpy as np
 
@@ -16,16 +17,20 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     self.parseConfig(configFile)
 
-    matches_file = self.params['root_directory'] + '/points/matches.npz'    
-
+    self.clouds_file = self.params['root_directory'] + '/points/clouds.pkl'
+    
     try:
-      self.point_matches = np.load(matches_file)['matches']
-      self.Nset = self.point_matches.shape[1]
-      print 'Read existing point match file exists.'
+      ff = open(self.clouds_file)
+      self.clouds = pickle.load(ff)
+      ff.close()
+      print 'Read existing point match file.'
     except:
       print 'No point match file exists.'
-      self.Nset = 54
-      self.point_matches = -1*np.ones((self.Nframes, self.Nset), dtype=np.int)
+      self.clouds = {}
+      for k in range(self.Nframes):
+        self.clouds[0] = {}
+
+    self.Nset = 5
 
     self.img1IndexBox.setMinimum(0)
     self.img1IndexBox.setMaximum(self.Nframes-1)
@@ -34,7 +39,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     self.setIndexBox.setMinimum(0)
     self.setIndexBox.setMaximum(self.Nset-1)
     self.setIndexBox.setValue(0)
-    self.working_point = 0
+    self.working_object = 0
 
     self.changeImage1(self.img1IndexBox.value())
 
@@ -42,7 +47,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     QtCore.QObject.connect(self.actionQuit, QtCore.SIGNAL('triggered()'), QtGui.qApp, QtCore.SLOT("quit()"))
     QtCore.QObject.connect(self.actionSave, QtCore.SIGNAL('triggered()'), self.save_matches)
     QtCore.QObject.connect(self.actionClear_matches, QtCore.SIGNAL('triggered()'), self.clear_matches)
-    QtCore.QObject.connect(self.setIndexBox, QtCore.SIGNAL("valueChanged(int)"), self.change_working_point)
+    QtCore.QObject.connect(self.setIndexBox, QtCore.SIGNAL("valueChanged(int)"), self.change_working_object)
     QtCore.QObject.connect(self.img1IndexBox, QtCore.SIGNAL("valueChanged(int)"), self.changeImage1)
     self.im1.canvas.mpl_connect('pick_event', self.onpick)
     self.im1.canvas.mpl_connect('button_press_event', self.onclick)
@@ -63,8 +68,9 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
       return
 
     if event.canvas == self.im1.canvas:
-      self.point_matches[self.img1_who,self.working_point] = -1
-      self.update_selected_points(1)
+      print event.xdata, event.ydata
+      
+      self.update_selected_object(1)
 
 
   def onpick(self, event):
@@ -73,7 +79,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
       return
 
     if event.artist == self.line1:
-      self.point_matches[self.img1_who,self.working_point] = event.ind[0]
+      self.point_matches[self.img1_who,self.working_object] = event.ind[0]
       self.did_pick = True
       im = 1
     else:
@@ -81,13 +87,13 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     if self.did_pick == True:
       if self.autoFeed.isChecked():
-        self.setIndexBox.setValue((self.working_point+1)%self.Nset)
+        self.setIndexBox.setValue((self.working_object+1)%self.Nset)
       else:
-        self.update_selected_points(im)
+        self.update_selected_object(im)
 
-  def change_working_point(self, wp):
-    self.working_point = wp
-    self.update_selected_points(1)
+  def change_working_object(self, wp):
+    self.working_object = wp
+    self.update_selected_object(1)
 
   def changeImage1(self, newfig):
     print "change 1 to ", newfig
@@ -96,14 +102,14 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     self.im1.axes.imshow(self.frames[newfig])
     
     self.im1.canvas.draw()
-    self.plot_possible_points(1)
-    self.update_selected_points(1)
+    self.plot_selected_points(1)
+    self.update_selected_object(1)
 
   def clear_matches(self):
     print 'Erasing current match matrix'
     self.Nset = 54
     self.point_matches = -1*np.ones((self.Nframes, self.Nset), dtype=np.int)
-    self.update_selected_points(1)
+    self.update_selected_object(1)
     
   def save_matches(self):
     print 'Saving current match matrix'
@@ -118,45 +124,36 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     self.Nframes = self.params['last_frame']+1
 
-    self.points = [
-      np.load(self.params['root_directory'] + '/points/%08d.npz'%k)['arr_0'] \
-      for k in range(self.Nframes) ]
-
     self.frames = [
       np.asarray(Image.open( \
         self.params['root_directory'] + '/frames/' + \
         self.params['filename_format']%k)) \
       for k in range(self.Nframes) ]
 
-  def plot_possible_points(self, im):
+  def plot_selected_points(self, im):
     if im == 1:
       frame = self.img1_who
-      self.line1, = self.im1.axes.plot(self.points[frame][:,0],
-                                       self.points[frame][:,1],
-                                       'bo', picker=3)
-      self.mark1, = self.im1.axes.plot([],[],
-                                       'ys', picker=3)
-      self.wrk1, = self.im1.axes.plot([],[],
-                                      'rs', picker=3)
+
+      pp = self.clouds[frame]
+      print pp
+
+      self.allobj, = self.im1.axes.plot(,
+                                       'r+', picker=3)
+      self.selobj, = self.im1.axes.plot([],[],
+                                       'y+', picker=3)
+
+      # self.line1, = self.im1.axes.plot(self.points[frame][:,0],
+      #                                  self.points[frame][:,1],
+      #                                  'bo', picker=3)
+      # self.mark1, = self.im1.axes.plot([],[],
+      #                                  'ys', picker=3)
+      # self.wrk1, = self.im1.axes.plot([],[],
+      #                                 'rs', picker=3)
       self.im1.canvas.draw()
 
-  def update_selected_points(self, im):
+  def update_selected_object(self, im):
     if im == 1:
-      frame = self.img1_who
-      sel = self.point_matches[frame]
-      sel = sel[sel>=0]
-      if sel == []:
-        self.mark1.set_data([],[])
-      else:
-        self.mark1.set_data(self.points[frame][sel,0],
-                            self.points[frame][sel,1])
-      sel = self.point_matches[frame,self.working_point]
-      if sel == -1:
-        self.wrk1.set_data([],[])
-      else:
-        self.wrk1.set_data(self.points[frame][sel,0],
-                           self.points[frame][sel,1])
-      self.im1.canvas.draw()
+      print 'hi'
 
 
 if __name__ == "__main__":

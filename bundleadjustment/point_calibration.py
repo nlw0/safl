@@ -86,7 +86,7 @@ if __name__ == '__main__':
   focal_distance = job_params['focal_distance']
   distortion_coefficient = job_params['distortion_coefficient']
 
-  what_model = 1
+  what_model = 2
   if what_model in [0,2]:
     vecint = array([focal_distance, 
                     p_point[0], p_point[1]])
@@ -174,7 +174,12 @@ if __name__ == '__main__':
 
   err = reprojection_error(x_opt, shape, pp_ref, what_model)
 
-  print x_opt[-4], x_opt[-3], x_opt[-2], x_opt[-1], err
+  
+  what_model = 2
+  if what_model in [0,2]:
+    print x_opt[-3], x_opt[-2], x_opt[-1], err
+  else:
+    print x_opt[-4], x_opt[-3], x_opt[-2], x_opt[-1], err
 
 
 
