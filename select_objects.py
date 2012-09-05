@@ -137,7 +137,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
       pp = self.clouds[frame]
       print pp
 
-      self.allobj, = self.im1.axes.plot(,
+      self.allobj, = self.im1.axes.plot([],[],
                                        'r+', picker=3)
       self.selobj, = self.im1.axes.plot([],[],
                                        'y+', picker=3)
