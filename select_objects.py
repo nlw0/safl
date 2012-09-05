@@ -28,8 +28,12 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
       print 'No point match file exists.'
       self.clouds = {}
       for k in range(self.Nframes):
-        self.clouds[0] = {}
-
+        self.clouds = {0:{0:[100.0,100.0,200.0,100.0,200.0,200.0,100.0,200.0],
+                          1:[200.0,200.0,300.0,200.0,300.0,300.0,200.0,300.0],},
+                       1:{0:[300.0,100.0,400.0,100.0,400.0,200.0,300.0,200.0],
+                          1:[200.0,500.0,300.0,500.0,300.0,600.0,200.0,600.0],}
+                          }
+        
     self.Nset = 5
 
     self.img1IndexBox.setMinimum(0)
@@ -68,9 +72,19 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
       return
 
     if event.canvas == self.im1.canvas:
-      print event.xdata, event.ydata
-      
-      self.update_selected_object(1)
+
+      frame = self.img1_who
+
+      if not frame in self.clouds.keys():
+        self.clouds[frame] = {}
+      dd = self.clouds[frame]
+
+      if not self.working_object in dd:
+        dd[self.working_object] = []
+
+      dd[self.working_object].extend([event.xdata, event.ydata])
+
+      self.update_selected_object( )
 
 
   def onpick(self, event):
@@ -78,22 +92,22 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     if event.mouseevent.button != 1:
       return
 
-    if event.artist == self.line1:
-      self.point_matches[self.img1_who,self.working_object] = event.ind[0]
+    if event.artist == self.selobj:
+      frame = self.img1_who
+      del self.clouds[frame][self.working_object][2*event.ind[0]:2*event.ind[0]+2]
+      
+
       self.did_pick = True
       im = 1
     else:
       return
 
     if self.did_pick == True:
-      if self.autoFeed.isChecked():
-        self.setIndexBox.setValue((self.working_object+1)%self.Nset)
-      else:
-        self.update_selected_object(im)
+      self.update_selected_object()
 
   def change_working_object(self, wp):
     self.working_object = wp
-    self.update_selected_object(1)
+    self.update_selected_object( )
 
   def changeImage1(self, newfig):
     print "change 1 to ", newfig
@@ -103,13 +117,13 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     
     self.im1.canvas.draw()
     self.plot_selected_points(1)
-    self.update_selected_object(1)
+    self.update_selected_object( )
 
   def clear_matches(self):
     print 'Erasing current match matrix'
     self.Nset = 54
     self.point_matches = -1*np.ones((self.Nframes, self.Nset), dtype=np.int)
-    self.update_selected_object(1)
+    self.update_selected_object( )
     
   def save_matches(self):
     print 'Saving current match matrix'
@@ -134,26 +148,40 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     if im == 1:
       frame = self.img1_who
 
-      pp = self.clouds[frame]
-      print pp
-
       self.allobj, = self.im1.axes.plot([],[],
-                                       'r+', picker=3)
+                                       'r+', mew=2, picker=5)
       self.selobj, = self.im1.axes.plot([],[],
-                                       'y+', picker=3)
+                                       'y+', mew=2, picker=5)
 
-      # self.line1, = self.im1.axes.plot(self.points[frame][:,0],
-      #                                  self.points[frame][:,1],
-      #                                  'bo', picker=3)
-      # self.mark1, = self.im1.axes.plot([],[],
-      #                                  'ys', picker=3)
-      # self.wrk1, = self.im1.axes.plot([],[],
-      #                                 'rs', picker=3)
       self.im1.canvas.draw()
+      
 
-  def update_selected_object(self, im):
-    if im == 1:
-      print 'hi'
+  def update_selected_object(self):
+    print 'hi'
+
+    self.selobj.set_data([], [])
+    self.allobj.set_data([], [])
+
+    frame = self.img1_who
+    if not frame in self.clouds:
+      self.im1.canvas.draw()
+      return
+      
+    opp = []
+    for kk in self.clouds[frame].keys():
+      pp = self.clouds[frame][kk]
+      if kk == self.working_object:
+        app = np.array(pp).reshape(-1,2)
+        self.selobj.set_data(app[:,0], app[:,1])
+      else:
+        opp.extend(pp)
+
+    if opp != []:      
+      aopp = np.array(opp).reshape(-1,2)
+      self.allobj.set_data(aopp[:,0], aopp[:,1])
+      
+    self.im1.canvas.draw()
+
 
 
 if __name__ == "__main__":
