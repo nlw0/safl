@@ -28,11 +28,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
       print 'No point match file exists.'
       self.clouds = {}
       for k in range(self.Nframes):
-        self.clouds = {0:{0:[100.0,100.0,200.0,100.0,200.0,200.0,100.0,200.0],
-                          1:[200.0,200.0,300.0,200.0,300.0,300.0,200.0,300.0],},
-                       1:{0:[300.0,100.0,400.0,100.0,400.0,200.0,300.0,200.0],
-                          1:[200.0,500.0,300.0,500.0,300.0,600.0,200.0,600.0],}
-                          }
+        self.clouds = {}
         
     self.Nset = 5
 
@@ -49,7 +45,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     QtCore.QObject.connect(self.actionOpen, QtCore.SIGNAL("triggered()"), self.parseConfig)
     QtCore.QObject.connect(self.actionQuit, QtCore.SIGNAL('triggered()'), QtGui.qApp, QtCore.SLOT("quit()"))
-    QtCore.QObject.connect(self.actionSave, QtCore.SIGNAL('triggered()'), self.save_matches)
+    QtCore.QObject.connect(self.actionSave, QtCore.SIGNAL('triggered()'), self.save_data)
     QtCore.QObject.connect(self.actionClear_matches, QtCore.SIGNAL('triggered()'), self.clear_matches)
     QtCore.QObject.connect(self.setIndexBox, QtCore.SIGNAL("valueChanged(int)"), self.change_working_object)
     QtCore.QObject.connect(self.img1IndexBox, QtCore.SIGNAL("valueChanged(int)"), self.changeImage1)
@@ -125,9 +121,12 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     self.point_matches = -1*np.ones((self.Nframes, self.Nset), dtype=np.int)
     self.update_selected_object( )
     
-  def save_matches(self):
-    print 'Saving current match matrix'
-    np.savez(self.params['root_directory'] + '/points/matches.npz', matches=self.point_matches)
+  def save_data(self):
+    print 'Saving current points'
+
+    ff = open(self.clouds_file, 'w')
+    pickle.dump(self.clouds, ff)
+    ff.close()
 
   def parseConfig(self,configFile=''):
     ## Opens dialog box if no config file name is provided.
