@@ -93,6 +93,16 @@ cdef double project_point(double *out_x, double *out_y,
         out_x[0] = params[1] + ux * factor
         out_y[0] = params[2] + uy * factor
 
+    ## Equiretangular
+    elif camera_model == 5:
+        phi = asin(y/sqrt(y*y+x*x+z*z))
+        the = atan2(x,z)
+        out_x[0] = the*params[0] + params[1]
+        out_y[0] = phi*params[0] + params[2]
+
+
+
+
 
 
 
@@ -164,13 +174,12 @@ cdef double point_direction(double* out_x, double* out_y,
 
     ## Equiretangular
     elif camera_model == 5:
-        if params[3] == 0:
-            the = (x - params[1]) / params[0]
-            phi = (y - params[2]) / params[0]
-
-            out_x[0] = cos(phi) * sin(the)
-            out_y[0] = sin(phi)
-            out_z[0] = cos(phi) * cos(the)
+        the = (x - params[1]) / params[0]
+        phi = (y - params[2]) / params[0]
+        
+        out_x[0] = cos(phi) * sin(the)
+        out_y[0] = sin(phi)
+        out_z[0] = cos(phi) * cos(the)
 
     ## Also equirectangular, but with the z-axis as the zenith.
     elif camera_model == 6:
@@ -453,3 +462,4 @@ cdef extern double tan(double)
 cdef extern double atan2(double,double)
 cdef extern double cos(double)
 cdef extern double sin(double)
+cdef extern double asin(double)
