@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#coding:utf-8
+# coding:utf-8
 
 # Copyright (c) 2012   Universidade de São Paulo et alii. See AUTHORS
 # file for details.
@@ -20,17 +20,22 @@
 ## This script uses OpenCV point feature extractor to analyze one
 ## input image, and save the coordinates to an output file.
 
-import cv
 import sys
+
+import cv2
+
+import scipy.ndimage
+from pylab import *
 
 if __name__ == '__main__':
     if sys.argv[0][-7:] == '-nop.py':
-        PlotStuff=False
+        PlotStuff = False
     else:
-        PlotStuff=True
+        PlotStuff = True
         import matplotlib
+
         if sys.argv[0][-7:] == '-nox.py':
-            matplotlib.use('Agg') 
+            matplotlib.use('Agg')
 
 from pylab import *
 
@@ -40,7 +45,7 @@ if __name__ == '__main__':
 
     ## Sets filename from input argument
     if len(sys.argv) < 3:
-        print sys.argv[0], '<job_file.json> <frame_number>'
+        print(sys.argv[0], '<job_file.json> <frame_number>')
         raise Exception('Insufficient number of parameters')
 
     finput = open(sys.argv[1])
@@ -50,30 +55,29 @@ if __name__ == '__main__':
     fileroot = job_params['root_directory']
 
     framenum = int(sys.argv[2])
-    filename = fileroot+'/frames/'+job_params['filename_format']%framenum
-    output_file = fileroot+'/points/'+'%08d'%framenum
+    filename = fileroot + '/frames/' + job_params['filename_format'] % framenum
+    output_file = fileroot + '/points/' + '%08d' % framenum
 
-    #Load source image and convert it to gray
-    src = cv.LoadImageM(filename, cv.CV_LOAD_IMAGE_GRAYSCALE)
+    # Load source image and convert it to gray
+    src = array(imread(filename)[:, :, 1], dtype=float32)
 
     Np = 1000
 
-    #Apply corner detection
-    criteria = (cv.CV_TERMCRIT_ITER|cv.CV_TERMCRIT_EPS, 10, 0.03)
-    eig = cv.CreateImage(cv.GetSize(src), 32, 1)
-    temp = cv.CreateImage(cv.GetSize(src), 32, 1)
-    points = cv.GoodFeaturesToTrack(src, eig, temp, Np, 0.01, 10, None, 3, 0, 0.04)
-    points = cv.FindCornerSubPix(src, points, (11,11), (-1, -1), criteria)
+    # Apply corner detection
+    eig = zeros(src.size)
+    temp = zeros(src.size)
+    points = cv2.goodFeaturesToTrack(src, Np, 0.005, 5)
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.001)
+    corners = cv2.cornerSubPix(src, points, (5, 5), (-1, -1), criteria)
 
-    points = array(points)
+    points = points.reshape(-1, 2)
 
-    #Save the points
+    # Save the points
     savez(output_file, points)
-
 
     if PlotStuff:
         ion()
-        imshow(src, cmap=cm.bone)
+        imshow(src, cmap=cm.bone, vmin=-0.1, vmax=0.1)
+        print(points)
         for pp in points:
-            plot(points[:,0], points[:,1], 'ro')
-
+            plot(points[:, 0], points[:, 1], 'ro')
