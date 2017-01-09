@@ -1,5 +1,7 @@
 #!/usr/bin/python2.7
 
+import os
+
 import simplejson
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, qApp
 from pylab import *
@@ -12,6 +14,11 @@ class DesignerMainWindow(QMainWindow, Ui_MainWindow):
         super(DesignerMainWindow, self).__init__(parent)
         self.setupUi(self)
 
+        self.params = {}
+        self.Nframes = 0
+        self.points = []
+        self.frames = []
+
         self.parseConfig(configFile)
 
         matches_file = self.params['root_directory'] + '/points/matches.npz'
@@ -20,25 +27,33 @@ class DesignerMainWindow(QMainWindow, Ui_MainWindow):
             self.point_matches = np.load(matches_file)['matches']
             self.Nset = self.point_matches.shape[1]
             print('Read existing point match file exists.')
-        except:
+        except IOError:
             print('No point match file exists.')
             self.Nset = 54
             self.point_matches = -1 * np.ones((self.Nframes, self.Nset), dtype=np.int)
 
+        self.img1_who = 0
+        self.img2_who = 1
+        self.img1 = self.im1.axes.imshow(self.frames[0])
+        self.line1 = self.im1.axes.plot([], [], 'bo', picker=3)[0]
+        self.mark1 = self.im1.axes.plot([], [], 'ys')[0]
+        self.wrk1 = self.im1.axes.plot([], [], 'rs')[0]
+        self.img2 = self.im2.axes.imshow(self.frames[1])
+        self.line2 = self.im2.axes.plot([], [], 'bo', picker=3)[0]
+        self.mark2 = self.im2.axes.plot([], [], 'ys')[0]
+        self.wrk2 = self.im2.axes.plot([], [], 'rs')[0]
+
         self.img1IndexBox.setMinimum(0)
         self.img1IndexBox.setMaximum(self.Nframes - 1)
+        self.img1IndexBox.setValue(self.params['first_frame'])
         self.img2IndexBox.setMinimum(0)
         self.img2IndexBox.setMaximum(self.Nframes - 1)
-        self.img1IndexBox.setValue(0)
-        self.img2IndexBox.setValue(1)
+        self.img2IndexBox.setValue(self.params['first_frame'] + 1)
 
         self.setIndexBox.setMinimum(0)
-        self.setIndexBox.setMaximum(self.Nset - 1)
+        self.setIndexBox.setMaximum(self.Nset)
         self.setIndexBox.setValue(0)
         self.working_point = 0
-
-        self.changeImage1(self.img1IndexBox.value())
-        self.changeImage2(self.img2IndexBox.value())
 
         self.actionOpen.triggered.connect(self.parseConfig)
         self.actionQuit.triggered.connect(qApp.quit)
@@ -51,72 +66,104 @@ class DesignerMainWindow(QMainWindow, Ui_MainWindow):
         self.im2.canvas.mpl_connect('pick_event', self.onpick)
         self.im1.canvas.mpl_connect('button_press_event', self.onclick)
         self.im2.canvas.mpl_connect('button_press_event', self.onclick)
+        self.im1.canvas.mpl_connect('key_press_event', self.onkey)
+        self.im2.canvas.mpl_connect('key_press_event', self.onkey)
+
+        self.changeImage1(self.img1IndexBox.value())
+        self.changeImage2(self.img2IndexBox.value())
 
         self.did_pick = False
 
     def onclick(self, event):
-        ## Test if something was just picked from this click. In this
-        ## case, do nothing.
+        # Test if something was just picked from this click. In this
+        # case, do nothing.
         if self.did_pick:
             self.did_pick = False
             return
 
-        ## Not a left click, just ignore
+        # Not a left click, just ignore
         if event.button != 1:
             return
 
-        if event.canvas == self.im1.canvas:
-            self.point_matches[self.img1_who, self.working_point] = -1
-            self.update_selected_points(1)
-        elif event.canvas == self.im2.canvas:
-            self.point_matches[self.img2_who, self.working_point] = -1
-            self.update_selected_points(2)
+            # if event.canvas == self.im1.canvas:
+            #     self.point_matches[self.img1_who, self.working_point] = -1
+            #     self.update_selected_points(1)
+            # elif event.canvas == self.im2.canvas:
+            #     self.point_matches[self.img2_who, self.working_point] = -1
+            #     self.update_selected_points(2)
 
     def onpick(self, event):
-        ## Not a left click, just ignore
-        if event.mouseevent.button != 1:
-            return
+        # Not a left click, just ignore
+        if event.mouseevent.button == 3 and (event.artist == self.line1 or event.artist == self.line2):
+            frame = self.img1_who if event.artist == self.line1 else self.img2_who if event.artist == self.line2 else -1
+            im = 1 if event.artist == self.line1 else 2 if event.artist == self.line2 else -1
+            self.delete_point(frame, event.ind[0])
+            self.update_plotted_points(im)
 
-        if event.artist == self.line1:
-            self.point_matches[self.img1_who, self.working_point] = event.ind[0]
-            self.did_pick = True
-            im = 1
-        elif event.artist == self.line2:
-            self.point_matches[self.img2_who, self.working_point] = event.ind[0]
-            self.did_pick = True
-            im = 2
-        else:
-            return
+        elif event.mouseevent.button == 1 and (event.artist == self.line1 or event.artist == self.line2):
+            frame = self.img1_who if event.artist == self.line1 else self.img2_who if event.artist == self.line2 else -1
+            im = 1 if event.artist == self.line1 else 2 if event.artist == self.line2 else -1
+            self.toggle_point_label(frame, self.working_point, event.ind[0])
 
-        if self.did_pick == True:
             if self.autoFeed.isChecked():
                 self.setIndexBox.setValue((self.working_point + 1) % self.Nset)
             else:
                 self.update_selected_points(im)
+
+    def toggle_point_label(self, frame, label, point_index):
+        print("toggle {} {} from {} with {}".format(frame, label, self.point_matches[frame, label], point_index))
+        self.point_matches[frame, label] = -1 if self.point_matches[frame, label] == point_index else point_index
+        print("now {}".format(self.point_matches[frame, label]))
+
+    def delete_point(self, frame, point_index):
+        print("Delete point frm {} idx {}".format(frame, point_index))
+        self.points[frame] = vstack((self.points[frame][0:point_index], self.points[frame][point_index + 1:]))
+        for j in range(len(self.point_matches[frame])):
+            if self.point_matches[frame, j] > point_index:
+                self.point_matches[frame, j] -= 1
+            elif self.point_matches[frame, j] == point_index:
+                self.point_matches[frame, j] = -1
+
+    def onkey(self, event):
+        if event.key != 'q':
+            return
+        if event.canvas == self.im1.canvas and event.xdata is not None and event.ydata is not None:
+            print('Create point at image {} ({},{})'.format(self.img1_who, event.xdata, event.ydata))
+            print(self.points[self.img1_who])
+            self.points[self.img1_who] = vstack((self.points[self.img1_who], [[event.xdata, event.ydata]]))
+            print(self.points[self.img1_who])
+            self.update_plotted_points(1)
+            self.update_selected_points(1)
+        elif event.canvas == self.im2.canvas and event.xdata is not None and event.ydata is not None:
+            print('Create point at image {} ({},{})'.format(self.img2_who, event.xdata, event.ydata))
+            self.points[self.img2_who] = vstack((self.points[self.img2_who], [[event.xdata, event.ydata]]))
+            self.update_plotted_points(2)
+            self.update_selected_points(2)
 
     def change_working_point(self, wp):
         self.working_point = wp
         self.update_selected_points(1)
         self.update_selected_points(2)
 
-    def changeImage1(self, newfig):
-        print("change 1 to ", newfig)
-        self.img1_who = newfig
-        self.im1.axes.clear()
-        self.im1.axes.imshow(self.frames[newfig])
+    def changeImage1(self, frame):
+        self.do_change_image(1, frame)
 
-        self.im1.canvas.draw()
-        self.plot_possible_points(1)
-        self.update_selected_points(1)
+    def changeImage2(self, frame):
+        self.do_change_image(2, frame)
 
-    def changeImage2(self, newfig):
-        print("change 2 to ", newfig)
-        self.img2_who = newfig
-        self.im2.axes.clear()
-        self.im2.axes.imshow(self.frames[newfig])
-        self.im2.canvas.draw()
-        self.plot_possible_points(2)
-        self.update_selected_points(2)
+    def do_change_image(self, im, newframe):
+        print("change {} to {}".format(im, newframe))
+        if im == 1:
+            self.img1_who = newframe
+            self.img1.set_data(self.frames[newframe])
+            self.update_plotted_points(1)
+            self.update_selected_points(1)
+
+        elif im == 2:
+            self.img2_who = newframe
+            self.img2.set_data(self.frames[newframe])
+            self.update_plotted_points(2)
+            self.update_selected_points(2)
 
     def clear_matches(self):
         print('Erasing current match matrix')
@@ -128,81 +175,71 @@ class DesignerMainWindow(QMainWindow, Ui_MainWindow):
     def save_matches(self):
         print('Saving current match matrix')
         np.savez(self.params['root_directory'] + '/points/matches.npz', matches=self.point_matches)
+        print('Saving current point coordinates')
+        for k in range(self.Nframes):
+            points_filename = self.get_points_filename(k)
+            np.savez(points_filename, self.points[k])
 
-    def parseConfig(self, configFile=''):
-        ## Opens dialog box if no config file name is provided.
-        if configFile == '':
-            configFile = str(QFileDialog.getOpenFileName())
+    def parseConfig(self, config_filename=''):
+        print("OIIII")
+        # Opens dialog box if no config file name is provided.
+        if config_filename == '':
+            config_filename, _ = QFileDialog.getOpenFileName(parent=self, caption="Set configuration file",
+                                                             filter="*.json")
+            print(config_filename)
 
-        self.params = simplejson.load(open(configFile))
+        self.params = simplejson.load(open(config_filename))
 
         self.Nframes = self.params['last_frame'] - self.params['first_frame'] + 1
 
-        self.points = [
-            np.load(self.params['root_directory'] + '/points/%08d.npz' % k)['arr_0'] \
-            for k in range(self.Nframes)]
+        self.points = [self.get_frame_points(k) for k in range(self.Nframes)]
 
-        self.frames = [
-            np.asarray(imread(self.params['root_directory'] + '/frames/' +
-                              self.params['filename_format'] % k))
-            for k in range(self.Nframes)]
+        self.frames = [np.asarray(imread(self.frame_filename(k))) for k in range(self.Nframes)]
 
-    def plot_possible_points(self, im):
-        if im == 1:
-            frame = self.img1_who
-            self.line1, = self.im1.axes.plot(self.points[frame][:, 0],
-                                             self.points[frame][:, 1],
-                                             'bo', picker=3)
-            self.mark1, = self.im1.axes.plot([], [],
-                                             'ys', picker=3)
-            self.wrk1, = self.im1.axes.plot([], [],
-                                            'rs', picker=3)
-            self.im1.canvas.draw()
-        elif im == 2:
-            frame = self.img2_who
-            self.line2, = self.im2.axes.plot(self.points[frame][:, 0],
-                                             self.points[frame][:, 1],
-                                             'bo', picker=3)
-            self.mark2, = self.im2.axes.plot([], [],
-                                             'ys', picker=3)
-            self.wrk2, = self.im2.axes.plot([], [],
-                                            'rs', picker=3)
-            self.im2.canvas.draw()
+    def get_frame_points(self, frame_number):
+        points_filename = self.get_points_filename(frame_number)
+        if os.path.isfile(points_filename):
+            return np.load(points_filename)['arr_0']
+        else:
+            return zeros((0, 2), dtype=float)
+
+    def get_points_filename(self, frame_number):
+        return self.params['root_directory'] + '/points/%08d.npz' % frame_number
+
+    def frame_filename(self, frame_number):
+        return self.params['root_directory'] + '/frames/' + self.params['filename_format'] % frame_number
+
+    def update_plotted_points(self, im):
+        if im != 1 and im != 2:
+            return
+
+        frame = self.img1_who if im == 1 else self.img2_who if im == 2 else None
+        line = self.line1 if im == 1 else self.line2 if im == 2 else None
+        line.set_data(self.points[frame][:, 0], self.points[frame][:, 1])
+
+        self.update_selected_points(im)
 
     def update_selected_points(self, im):
-        if im == 1:
-            frame = self.img1_who
-            sel = self.point_matches[frame]
-            sel = sel[sel >= 0]
-            if sel == []:
-                self.mark1.set_data([], [])
-            else:
-                self.mark1.set_data(self.points[frame][sel, 0],
-                                    self.points[frame][sel, 1])
-            sel = self.point_matches[frame, self.working_point]
-            if sel == -1:
-                self.wrk1.set_data([], [])
-            else:
-                self.wrk1.set_data(self.points[frame][sel, 0],
-                                   self.points[frame][sel, 1])
-            self.im1.canvas.draw()
-        elif im == 2:
-            frame = self.img2_who
-            sel = self.point_matches[frame]
-            sel = sel[sel >= 0]
-            if sel == []:
-                self.mark2.set_data([], [])
-            else:
-                self.mark2.set_data(self.points[frame][sel, 0],
-                                    self.points[frame][sel, 1])
-            sel = self.point_matches[frame, self.working_point]
-            if sel == -1:
-                self.wrk2.set_data([], [])
-            else:
-                self.wrk2.set_data(self.points[frame][sel, 0],
-                                   self.points[frame][sel, 1])
+        if im != 1 and im != 2:
+            return
 
-            self.im2.canvas.draw()
+        frame = self.img1_who if im == 1 else self.img2_who if im == 2 else -1
+        imx = self.im1 if im == 1 else self.im2 if im == 2 else None
+        mark = self.mark1 if im == 1 else self.mark2 if im == 2 else None
+        wrk = self.wrk1 if im == 1 else self.wrk2 if im == 2 else None
+
+        frame_selections = self.point_matches[frame]
+        wp_sel = mgrid[0:len(frame_selections)] == self.working_point
+
+        sel = frame_selections[(frame_selections > -1) * (wp_sel != True)]
+        print('sel', sel)
+        print('points', self.points)
+        mark.set_data(self.points[frame][sel, 0], self.points[frame][sel, 1])
+
+        sel = frame_selections[(frame_selections > -1) * wp_sel]
+        wrk.set_data(self.points[frame][sel, 0], self.points[frame][sel, 1])
+
+        imx.canvas.draw()
 
 
 if __name__ == "__main__":
@@ -213,8 +250,3 @@ if __name__ == "__main__":
         dmw = DesignerMainWindow('')
     dmw.show()
     sys.exit(app.exec_())
-
-
-## Local variables:
-## python-indent: 2
-## end:

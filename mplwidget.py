@@ -1,6 +1,6 @@
 import math
 
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -11,13 +11,18 @@ class MplWidget(QtWidgets.QWidget):
 
         self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
+        self.canvas.setFocusPolicy(QtCore.Qt.ClickFocus)
+        self.canvas.setFocus()
         self.canvas.setParent(self)
         self.canvas.mpl_connect('scroll_event', self.onWheel)
         self.canvas.mpl_connect('button_press_event', self.start_pan)
         self.canvas.mpl_connect('button_release_event', self.pan)
+        self.canvas.mpl_connect('motion_notify_event', self.pan_motion)
 
         self.axes = self.fig.add_subplot(111)
 
+        self.dragx = None
+        self.dragy = None
         # self.mpl_toolbar = NavigationToolbar(self.canvas, self)
 
         vbox = QtWidgets.QVBoxLayout()
@@ -27,17 +32,32 @@ class MplWidget(QtWidgets.QWidget):
 
     def start_pan(self, event):
         if event.button == 3:
-            self.dragx, self.dragy = event.x, event.y
+            self.dragx, self.dragy = event.xdata, event.ydata
+
+    def do_pan(self, xdata, ydata):
+        diffx, diffy = self.dragx - xdata, self.dragy - ydata
+        x1, x2 = self.axes.get_xlim()
+        y1, y2 = self.axes.get_ylim()
+        self.axes.set_xlim(x1 + diffx, x2 + diffx)
+        self.axes.set_ylim(y1 + diffy, y2 + diffy)
+        self.canvas.draw()
+
+    def stop_pan(self):
+        self.dragx, self.dragy = None, None
 
     def pan(self, event):
         if event.button == 3:
-            diffx, diffy = self.dragx - event.x, self.dragy - event.y
-            x1, x2 = self.axes.get_xlim()
-            y1, y2 = self.axes.get_ylim()
-            self.axes.set_xlim(x1 + diffx, x2 + diffx)
-            self.axes.set_ylim(y1 - diffy, y2 - diffy)
-            self.dragx, self.dragy = event.x, event.y
-            self.canvas.draw()
+            if event.inaxes is not None and \
+                        self.dragx is not None and self.dragy is not None and \
+                        event.xdata is not None and event.ydata is not None:
+                self.do_pan(event.xdata, event.ydata)
+            self.stop_pan()
+
+    def pan_motion(self, event):
+        if event.inaxes is not None and \
+                        self.dragx is not None and self.dragy is not None and \
+                        event.xdata is not None and event.ydata is not None:
+            self.do_pan(event.xdata, event.ydata)
 
     def _rescale(self, lo, hi, step, pt=None, bal=None, scale='linear'):
         """
@@ -64,8 +84,8 @@ class MplWidget(QtWidgets.QWidget):
         # point under the mouse
         if bal is None:
             bal = float(pt - lo) / (hi - lo)
-        lo = lo - bal * delta
-        hi = hi + (1 - bal) * delta
+        lo -= bal * delta
+        hi += (1 - bal) * delta
 
         # Convert transformed values back to the original scale
         if scale == 'log':
@@ -81,7 +101,7 @@ class MplWidget(QtWidgets.QWidget):
 
         # Older versions of matplotlib do not have event.step defined
         try:
-            step = event.step
+            step = 20.0 * event.step
         except:
             if event.button == 'up':
                 step = 20
