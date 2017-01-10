@@ -20,6 +20,7 @@ class MplWidget(QtWidgets.QWidget):
         self.canvas.mpl_connect('motion_notify_event', self.pan_motion)
 
         self.axes = self.fig.add_subplot(111)
+        self.fig.tight_layout()
 
         self.dragx = None
         self.dragy = None
@@ -40,7 +41,7 @@ class MplWidget(QtWidgets.QWidget):
         y1, y2 = self.axes.get_ylim()
         self.axes.set_xlim(x1 + diffx, x2 + diffx)
         self.axes.set_ylim(y1 + diffy, y2 + diffy)
-        self.canvas.draw()
+        self.canvas.draw_idle()
 
     def stop_pan(self):
         self.dragx, self.dragy = None, None
