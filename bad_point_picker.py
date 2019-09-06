@@ -9,7 +9,7 @@ from pylab import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-import simplejson
+import json
 
 
 class Coisa:
@@ -20,7 +20,7 @@ class Coisa:
             raise Exception('Insufficient number of parameters')
 
         finput = open(sys.argv[1])
-        job_params = simplejson.load(finput)
+        job_params = json.load(finput)
         finput.close()
 
         fileroot = job_params['root_directory']
