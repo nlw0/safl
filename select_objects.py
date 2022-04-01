@@ -1,15 +1,21 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 ## Remember to use "pyuic4 -o objseg_ui.py objseg_ui.ui"
-from PyQt4 import QtCore
-from PyQt4 import QtGui
+# from PyQt4 import QtCore
+# from PyQt4 import QtGui
+# from PyQt5 import QtCore
+# from PyQt5 import QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 from objseg_ui import Ui_MainWindow
 import simplejson
 import pickle
-import sys, Image, os
+# import sys, Image, os
+import sys, os
+from PIL import Image
 import numpy as np
+from pathlib import Path
 
-class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
+class DesignerMainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
   def __init__(self, configFile='', parent=None):
     super(DesignerMainWindow, self).__init__(parent)
@@ -18,18 +24,18 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     self.parseConfig(configFile)
 
     self.clouds_file = self.params['root_directory'] + '/points/clouds.pkl'
-    
+
     try:
       ff = open(self.clouds_file)
       self.clouds = pickle.load(ff)
       ff.close()
-      print 'Read existing point match file.'
+      print('Read existing point match file.')
     except:
-      print 'No point match file exists.'
+      print('No point match file exists.')
       self.clouds = {}
       for k in range(self.Nframes):
         self.clouds = {}
-        
+
     self.Nset = 5
 
     self.img1IndexBox.setMinimum(0)
@@ -43,12 +49,18 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     self.changeImage1(self.img1IndexBox.value())
 
-    QtCore.QObject.connect(self.actionOpen, QtCore.SIGNAL("triggered()"), self.parseConfig)
-    QtCore.QObject.connect(self.actionQuit, QtCore.SIGNAL('triggered()'), QtGui.qApp, QtCore.SLOT("quit()"))
-    QtCore.QObject.connect(self.actionSave, QtCore.SIGNAL('triggered()'), self.save_data)
-    QtCore.QObject.connect(self.actionClear_matches, QtCore.SIGNAL('triggered()'), self.clear_matches)
-    QtCore.QObject.connect(self.setIndexBox, QtCore.SIGNAL("valueChanged(int)"), self.change_working_object)
-    QtCore.QObject.connect(self.img1IndexBox, QtCore.SIGNAL("valueChanged(int)"), self.changeImage1)
+    # QtCore.QObject.connect(self.actionOpen, QtCore.SIGNAL("triggered()"), self.parseConfig)
+    # QtCore.QObject.connect(self.actionQuit, QtCore.SIGNAL('triggered()'), QtGui.qApp, QtCore.SLOT("quit()"))
+    # QtCore.QObject.connect(self.actionSave, QtCore.SIGNAL('triggered()'), self.save_data)
+    # QtCore.QObject.connect(self.actionClear_matches, QtCore.SIGNAL('triggered()'), self.clear_matches)
+    # QtCore.QObject.connect(self.setIndexBox, QtCore.SIGNAL("valueChanged(int)"), self.change_working_object)
+    # QtCore.QObject.connect(self.img1IndexBox, QtCore.SIGNAL("valueChanged(int)"), self.changeImage1)
+    self.actionOpen.triggered.connect(self.parseConfig)
+    self.actionQuit.triggered.connect(QtWidgets.qApp.quit)
+    self.actionSave.triggered.connect(self.save_data)
+    self.actionClear_matches.triggered.connect(self.clear_matches)
+    self.setIndexBox.valueChanged.connect(self.change_working_object)
+    self.img1IndexBox.valueChanged.connect(self.changeImage1)
     self.im1.canvas.mpl_connect('pick_event', self.onpick)
     self.im1.canvas.mpl_connect('button_press_event', self.onclick)
 
@@ -91,7 +103,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     if event.artist == self.selobj:
       frame = self.img1_who
       del self.clouds[frame][self.working_object][2*event.ind[0]:2*event.ind[0]+2]
-      
+
 
       self.did_pick = True
       im = 1
@@ -106,32 +118,34 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     self.update_selected_object( )
 
   def changeImage1(self, newfig):
-    print "change 1 to ", newfig
+    print( "change 1 to ", newfig)
     self.img1_who = newfig
     self.im1.axes.clear()
     self.im1.axes.imshow(self.frames[newfig])
-    
+
     self.im1.canvas.draw()
     self.plot_selected_points(1)
     self.update_selected_object( )
 
   def clear_matches(self):
-    print 'Erasing current match matrix'
+    print( 'Erasing current match matrix')
     self.Nset = 54
     self.point_matches = -1*np.ones((self.Nframes, self.Nset), dtype=np.int)
     self.update_selected_object( )
-    
-  def save_data(self):
-    print 'Saving current points'
 
-    ff = open(self.clouds_file, 'w')
+  def save_data(self):
+    print( 'Saving current points')
+
+    # ff = open(self.clouds_file, 'w')
+    Path(os.path.dirname(self.clouds_file)).mkdir(parents=True, exist_ok=True)
+    ff = open(self.clouds_file, 'wb')
     pickle.dump(self.clouds, ff)
     ff.close()
 
   def parseConfig(self,configFile=''):
     ## Opens dialog box if no config file name is provided.
     if configFile == '':
-      configFile = str(QtGui.QFileDialog.getOpenFileName())
+      configFile = str(QtWidgets.QFileDialog.getOpenFileName()[0])
 
     self.params = simplejson.load(open(configFile))
 
@@ -153,10 +167,10 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
                                        'y+', mew=2, picker=5)
 
       self.im1.canvas.draw()
-      
+
 
   def update_selected_object(self):
-    print 'hi'
+    print( 'hi')
 
     self.selobj.set_data([], [])
     self.allobj.set_data([], [])
@@ -165,7 +179,7 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     if not frame in self.clouds:
       self.im1.canvas.draw()
       return
-      
+
     opp = []
     for kk in self.clouds[frame].keys():
       pp = self.clouds[frame][kk]
@@ -175,16 +189,16 @@ class DesignerMainWindow(QtGui.QMainWindow, Ui_MainWindow):
       else:
         opp.extend(pp)
 
-    if opp != []:      
+    if opp != []:
       aopp = np.array(opp).reshape(-1,2)
       self.allobj.set_data(aopp[:,0], aopp[:,1])
-      
+
     self.im1.canvas.draw()
 
 
 
 if __name__ == "__main__":
-  app = QtGui.QApplication(sys.argv)
+  app = QtWidgets.QApplication(sys.argv)
   if len(sys.argv) > 1:
     dmw = DesignerMainWindow(sys.argv[1])
   else:
@@ -192,7 +206,7 @@ if __name__ == "__main__":
   dmw.show()
   sys.exit(app.exec_())
 
-  
+
 ## Local variables:
 ## python-indent: 2
 ## end:
