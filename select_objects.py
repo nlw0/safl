@@ -23,20 +23,25 @@ class DesignerMainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     self.parseConfig(configFile)
 
-    self.clouds_file = self.params['root_directory'] + '/points/clouds.pkl'
+    self.clouds_file = self.params['root_directory'] + '/points/clouds.json'
 
     try:
-      ff = open(self.clouds_file)
-      self.clouds = pickle.load(ff)
+      # ff = open(self.clouds_file, 'rb')
+      # self.clouds = pickle.load(ff)
+      # ff.close()
+      ff = open(self.clouds_file, 'r')
+
+      self.clouds = {int(k): {int(kk): vv for kk,vv in v.items()} for k, v in simplejson.load(ff).items()}
       ff.close()
       print('Read existing point match file.')
+      print(self.clouds)
     except:
       print('No point match file exists.')
       self.clouds = {}
       for k in range(self.Nframes):
         self.clouds = {}
 
-    self.Nset = 5
+    self.Nset = 54
 
     self.img1IndexBox.setMinimum(0)
     self.img1IndexBox.setMaximum(self.Nframes-1)
@@ -58,15 +63,28 @@ class DesignerMainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     self.actionOpen.triggered.connect(self.parseConfig)
     self.actionQuit.triggered.connect(QtWidgets.qApp.quit)
     self.actionSave.triggered.connect(self.save_data)
-    self.actionClear_matches.triggered.connect(self.clear_matches)
+    # self.actionClear_matches.triggered.connect(self.clear_matches)
     self.setIndexBox.valueChanged.connect(self.change_working_object)
     self.img1IndexBox.valueChanged.connect(self.changeImage1)
     self.im1.canvas.mpl_connect('pick_event', self.onpick)
     self.im1.canvas.mpl_connect('button_press_event', self.onclick)
+    self.im1.canvas.mpl_connect('key_press_event', self.onkey)
 
     self.did_pick = False
 
-
+  def onkey(self, event):
+    if event.key == "o":
+      # print("left")
+      self.img1IndexBox.stepBy(-1)
+    elif event.key == "u":
+      # print("right")
+      self.img1IndexBox.stepBy(1)
+    elif event.key == "e":
+      # print("down")
+      self.setIndexBox.stepBy(-1)
+    elif event.key == ".":
+      # print("up")
+      self.setIndexBox.stepBy(1)
 
   def onclick(self, event):
     ## Test if something was just picked from this click. In this
@@ -138,8 +156,11 @@ class DesignerMainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     # ff = open(self.clouds_file, 'w')
     Path(os.path.dirname(self.clouds_file)).mkdir(parents=True, exist_ok=True)
-    ff = open(self.clouds_file, 'wb')
-    pickle.dump(self.clouds, ff)
+    # ff = open(self.clouds_file, 'wb')
+    # pickle.dump(self.clouds, ff)
+    # ff.close()
+    ff = open(self.clouds_file, 'w')
+    simplejson.dump(self.clouds, ff)
     ff.close()
 
   def parseConfig(self,configFile=''):
@@ -164,13 +185,12 @@ class DesignerMainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
       self.allobj, = self.im1.axes.plot([],[],
                                        'r+', mew=2, picker=5)
       self.selobj, = self.im1.axes.plot([],[],
-                                       'y+', mew=2, picker=5)
+                                       'b+', mew=2, picker=5)
 
       self.im1.canvas.draw()
 
 
   def update_selected_object(self):
-    print( 'hi')
 
     self.selobj.set_data([], [])
     self.allobj.set_data([], [])
